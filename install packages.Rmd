@@ -1,0 +1,13 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+http://www.business-science.io/code-tools/2017/07/09/sweep-0-1-0.html
+run this code
+sudo apt-get install gfortran
+```{r}
+install.packages("quadprog")
+install.packages("tseries")
+install.packages('rmarkdown')
+```
