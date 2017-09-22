@@ -2,10 +2,6 @@
 # Experiment with the G&K distribution
 # To run click 'Run App' button above.
 #
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shiny)
 
@@ -29,7 +25,11 @@ ui <- fluidPage(
                      min=0,max=5,step=0.1,value=1),
          sliderInput("k",
                      "k:",
-                     min=0,max=1,step=0.01,value=0.5)
+                     min=-1,max=1,step=0.01,value=0.5),
+         sliderInput("g",
+                     "g:",
+                     min=-2,max=2,step=0.01,value=0)
+ 
       ),
       
       # Show a plot of the generated distribution
@@ -46,7 +46,7 @@ server <- function(input, output) {
    library('readxl')
    library(gk)
   my_data<-reactive({
-      r<-rgk(5000,A=input$A,B=input$B,g=2,k=input$k)
+      r<-rgk(5000,A=input$A,B=input$B,g=input$g,k=input$k)
   }) 
   output$logPlot <- renderPlot({
       # generate bins based on input$bins from ui.R

@@ -28,40 +28,75 @@ sapply(mydata,"class")
 d <- mydata %>%
   mutate(t = yq(yearqrt)) %>%
   mutate(Y = ppi) %>%
-  mutate(d.Y = lead(Y) - Y )
-!is.na(d$d.Y)
+  mutate(d.Y = Y - lag(Y) ) %>%
+  mutate(dppi =  ) %>%
+  mutate(lppi = lag(ppi))  %>%
+  mutate(ldppi=lag(dppi))
 # Create a version without missing differences
 length(d$d.Y)
 d1<-d[!is.na(d$d.Y),]
 length(d1$d.Y)
+names(d)
+head(d[,c("t","ppi","dppi","lppi","ldppi","Y","d.Y")])
 ```
+```{r}
+ylist <- enquote(c('ppi'))
+dylist <- enquote(c('dppi'))
+time <- enquote(c('t'))
+lylist <- enquote(c('lppi'))
+trend<- enquote(c('trend'))
+xlist<-enquote(c('cpi','gdp'))
+```
+```{r}
+install.packages('Hmisc')
+install.packages('ggfortify')
+install.packages('forecast')
+library(glue)
+library(Hmisc)
+library(ggfortify)
+library(forecast)
+```
+
 
 ## Descriptive statistics plots
 ```{r}
-d %>% summary(Y)
+d %>% select(!!ylist,!!dylist,!!time) %>% describe()
+```
+
+## Plots
+```{r}
 d %>% ggplot(aes(t,Y)) + geom_line() + ggtitle("Y by Time")
-d %>% ggplot(aes(t,d.Y)) + geom_line() + ggtitle("Dif of Y by Time")
 
 ```
+```{r}
+d %>% ggplot(aes(t,d.Y)) + geom_line() + ggtitle("Dif of Y by Time")
+```
+
 Look at Dickey Fuller
 
 
 Dickey-Fuller test for original variable
 ```{r}
 with(d,adf.test(Y, alternative="stationary", k=0))
+with(d,adf.test(Y, alternative="stationary", k=1))
+with(d,adf.test(Y, alternative="stationary", k=2))
+```
+```{r}
 with(d,adf.test(Y, alternative="explosive", k=0))
 ```
+
 Summary statistics
 ```{r}
 with(d,summary(lm(dppi ~ lppi, na.action=na.omit)))
-with(d,summary(lm(dppi ~ lppi + trend, na.action=na.omit)))
 ```
 
-Dickey-Fuller for differenced variabler
+
+
+Dickey-Fuller for differenced variable
 ```{r}
-!is.na(d1$d.Y)
 with(d1,adf.test(d.Y, alternative="stationary", k=0))
-with(d1,adf.test(d.Y, alternative="explosive", k=0))
+with(d1,adf.test(d.Y, alternative="stationary", k=1))
+with(d1,adf.test(d.Y, alternative="stationary", k=2))
 
 ```
 
@@ -72,12 +107,28 @@ with(d1,adf.test(d.Y, alternative="explosive", k=0))
 # ACF and PACF
 with(d,acf(Y))
 with(d,pacf(Y))
-with(d,acf(d.Y[!is.na(d.Y)]))
-with(d,pacf(d.Y[!is.na(d.Y)]))
+with(d1,acf(d.Y[!is.na(d.Y)]))
+with(d1,pacf(d.Y[!is.na(d.Y)]))
 ```
 ```{r}
+autoplot(lm(dppi ~ lppi + trend, na.action=na.omit,data=d))
+str(dppi.lm)
+dppi.res <- resid(dppi.lm)
+str(dppi.res)
+```
+https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_ts.html
+```{r}
 # ARIMA(1,0,0) or AR(1)
-with(d,arima(Y, order = c(1,0,0)))
+names(d)
+mts<-ts(d[,c('Y','ppi','dppi','t','lppi','cpi','gdp')],frequency=1)
+autoplot(mts)
+library(forecast)
+d.arima <-auto.arima(d$Y)
+d.forecast <- forecast(d.arima,level=c(95),h=50)
+autoplot(d.forcast)
+d.arima_2<-arima(d$Y,order=c(1,1,0))
+d.forcast_2 <- forecast(d.arima_2,level=c(95),h=50)
+autoplot((d.forcast_2))
 ```
 
 ```{r}
