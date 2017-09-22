@@ -25,7 +25,7 @@ z<-rnorm(100)
 gk_1<-data.table(gk=Q_gk(z,1,2,1,1,1))
 ```
 ```{r}
-gk_1 %>% ggplot + aes() + geom_histogram()
+gk_1 %>% ggplot + aes(x=gk) + geom_histogram()
 ```
 
 
