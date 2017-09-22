@@ -52,8 +52,8 @@ with(d,summary(lm(dppi ~ lppi + trend, na.action=na.omit)))
 
 ```
 ```{r}
-with(d,adf.test(d.Y, alternative="stationary", k=0))
-with(d,adf.test(d.Y, alternative="explosive", k=0))
+with(d,adf.test(d.Y[! is.na(d.Y)], alternative="stationary", k=0))
+with(d,adf.test(d.Y[! is.na(d.Y)], alternative="explosive", k=0))
 
 ```
 
@@ -61,12 +61,12 @@ with(d,adf.test(d.Y, alternative="explosive", k=0))
 
 
 ```{r}
-
 # ACF and PACF
 with(d,acf(Y))
-pacf(Y)
-acf(d.Y)
-pacf(d.Y)
+with(d,pacf(Y))
+with(d,acf(d.Y))
+with(d,pacf(d.Y[!is.nam]))
+```
 # ARIMA(1,0,0) or AR(1)
 arima(Y, order = c(1,0,0))
 # ARIMA(2,0,0) or AR(2)
