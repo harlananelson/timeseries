@@ -1,0 +1,484 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Make sure the proper libraries are loaded
+```{r}
+library(data.table)
+library(quadprog)
+library(tseries)
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(gk)
+library(shiny)
+library(miniUI)
+library(shiny)
+library(miniUI)
+library(ggplot2)
+
+```
+
+This is a gadget to explore the gk distriburtion.  Run this part to load the function, then run it in the next chunk
+```{r}
+plot_gk <- function() {
+  ui <- miniPage(
+    miniContentPanel(
+    # Application title
+   titlePanel("g&k distribution"),
+   
+   # Sidebar with a slider input for number of bins 
+   sidebarLayout(
+      sidebarPanel(
+        actionButton(inputId = "go", label = "Calculate Results"), 
+        sliderInput("A",
+                     "A:",
+                     min = 1,
+                     max = 5,
+                     step = 0.1,
+                     value = 3), 
+        sliderInput("B",
+                     "B:",
+                     min=0,max=5,step=0.1,value=1), 
+        sliderInput("kh",
+                     "k:",
+                     min=-1,max=1,step=0.01,value=0.5), 
+        sliderInput("g",
+                     "g:",
+                     min=-2,max=2,step=0.01,value=0), 
+        selectInput("dist","gk or gh",choices = list("gk" = "rgk",'gh' = 'rgh'),selected = 'rgk') 
+        ),
+      
+      # Show a plot of the generated distribution
+      mainPanel(
+        plotOutput("regPlot"), 
+        verbatimTextOutput("stats") ,
+        plotOutput("logPlot"), 
+        verbatimTextOutput("statslog")  
+        ) 
+   )  
+   )  
+  ) 
+
+server <- function(input, output, session) {
+  # Modify the slider depending on what distribution the user wants to model
+  observeEvent(input$dist,{
+   if (input$dist == 'rgk') {
+     updateSliderInput(session,
+                       "kh", 
+                       "k:", 
+                       min=-1,max=1,step=0.01) 
+   } 
+    else {
+      updateSliderInput(session,
+                       "kh", 
+                       "h:", 
+                       min=-1,max=1,step=0.01)  
+      } 
+  },priority = 1)
+  
+ my_data<-eventReactive({input$go; input$A},{
+   # When the "go" button is pushed or the A input changes, then update the data
+   if (input$dist == 'rgk') { 
+     tibble(x = do.call(input$dist,list(5000,A=input$A,B=input$B,g=input$g,k=input$kh)) )
+   }
+   else {
+     tibble(x = do.call(input$dist,list(5000,A=input$A,B=input$B,g=input$g,h=input$kh)) )
+   } 
+    
+  })  
+ my_log_data <- reactive({
+   #if my_data() changes, update the log version of the data.
+   my_data() %>% filter(x > 0)
+ })
+ 
+ # create the outputs.
+ output$logPlot <- renderPlot({ 
+   # generate bins based on input$bins from ui.R 
+   my_log_data() %>% ggplot() + aes(x=x) + scale_x_log10() + geom_density() + ggtitle("Log Plot") 
+   }) 
+ output$regPlot <- renderPlot({ 
+   # generate bins based on input$bins from ui.R 
+   my_data() %>% ggplot() + aes(x=x) + geom_density() 
+   })
+ output$statslog <- renderPrint({
+   summary(log(my_log_data())) 
+   })
+ output$stats <- renderPrint({
+   summary(my_data())
+ })
+} 
+   
+    
+# Run the application 
+runGadget(ui , server, viewer = browserViewer())
+}
+```
+Run the gk plot gadget.  Note that you have to select the "Calculate" button to refresh the graph after making changes.
+```{r}
+plot_gk()
+```
+
+This is a gadget to test the abilities of "abc" to estimate the parameters of a simulated function
+Run this chunk to load the function
+```{r}
+estimate_gk <- function() {
+  ui <- miniPage( 
+    miniContentPanel( 
+      # Application title 
+      titlePanel("g&k distribution"), 
+      # Sidebar with a slider input for number of bins  
+      sidebarPanel(
+                sliderInput("obs",
+                     "Number of observations",
+                     min = 1,
+                     max = 5000,
+                     step = 10,
+                     value = 1000
+                     ) , 
+                sliderInput("rep",
+                     "Number of simulation replications",
+                     min = 1,
+                     max = 5000,
+                     step = 10,
+                     value = 1000
+                     )  
+                ,sliderInput("A", "A", min = -10, max = 10, step = 0.1, value = 3 ) 
+                ,sliderInput("B", "B", min = -10, max = 10, step = 0.1, value = 1 ) 
+                ,sliderInput("g", "g", min = -10, max = 10, step = 0.1, value = 2 ) 
+                ,sliderInput("h", "h", min =  0, max = 10, step = 0.1, value = 0.8 ) 
+ 
+                ),  
+      mainPanel( 
+        plotOutput("Plot") 
+        , verbatimTextOutput("stats")  
+        , verbatimTextOutput("stats_x")   
+        )   
+      )   
+    ) 
+ # Define server logic required to draw a histogram
+server <- function(input, output, session) {
+  rv <- reactiveValues(obs=1000)
+  my_data<-reactive({   
+    model<-'gh' 
+    rep=1000 
+    fields <- c('A','B','g','h') 
+    fn<-paste('r','gh',sep='')
+    rprior = function(n) { matrix(runif(4*n,-10,10), ncol=4) } 
+    x <-  do.call(fn,list(input$obs, A=input$A, B=input$B, g=input$g, h=input$h))  
+    my.param <- 
+      abc(x, N=input$obs, rprior=rprior, M=input$rep,model=model) %>% 
+      as.data.table() %>% 
+      tail(1) %>% 
+      as.list %>% 
+      `[`(fields) 
+    my.sim<-do.call(fn,c(input$obs,my.param)) 
+    d<-data.table::data.table(x=x,sim=my.sim) %>%  
+      gather("source","x",1:2) 
+  }) 
+  output$Plot <- renderPlot({
+    my_data() %>%  
+      ggplot() + geom_density(aes(x=x,fill=factor(source)),alpha=0.4) + scale_x_log10()  
+    })     
+  output$stats <- renderPrint({
+   summary(my_data() %>% filter(source == 'sim') %>% select(x) ) 
+    })
+    output$stats_x <- renderPrint({
+   summary(my_data() %>% filter(source == 'x') %>% select(x) ) 
+    })
+  } 
+# Run the application 
+runGadget(ui , server, viewer = browserViewer())
+}
+```
+Run this chunck to run the gadget that test "abc"
+```{r}
+estimate_gk()
+```
+# Read in the Excel Data.
+* Assume the data is in a subdirectory called timeseries/data
+* Assume the name of the data xlsx data set is Data to Test g&h.xlsx
+* The column with the data should be called "Data"
+```{r,echo=FALSE}
+my_dir  <- file.path('~','timeseries','data' )
+my_file <- file.path(my_dir,'Data to Test g&h.xlsx')
+d <- read_excel(my_file)
+names(d)
+```
+
+# Plot a density estimate of the data
+```{r}
+d %>% 
+  ggplot() + aes(x=Data) + scale_x_log10() + geom_density() + ggtitle("Financial Time Series \n Log scale") +
+  theme(axis.text.x = element_text(labels = ))
+```
+
+```{r}
+
+ library(shiny)
+library(miniUI)
+library(leaflet)
+library(ggplot2)
+library(DT)
+test <-function(){
+ui <- miniPage(
+  gadgetTitleBar("Shiny gadget example"),
+  miniTabstripPanel(id='tab',selected="Custom",
+    miniTabPanel("Parameters", icon = icon("sliders"),
+      miniContentPanel( 
+        fileInput("filename", "Select File", buttonLabel = "Browse...")  ) 
+      ), 
+     miniTabPanel("printout", icon = icon("print"),
+      miniContentPanel(  verbatimTextOutput("print")   ) 
+      ), 
+    miniTabPanel("Visualize", icon = icon("area-chart"),
+      miniContentPanel(
+        sliderInput("year", "Year", 1978, 2010, c(2000, 2010), sep = "") ,
+        plotOutput("cars", height = "100%")
+      )
+    ),
+    miniTabPanel("Map", icon = icon("map-o"),
+      miniContentPanel(padding = 0,
+        leafletOutput("map", height = "100%")
+      ),
+      miniButtonBlock(
+        actionButton("resetMap", "Reset")
+      )
+    ),
+    miniTabPanel("Data", icon = icon("table"), 
+                 miniContentPanel(  DT::dataTableOutput("table")  ) 
+                 ), 
+    miniTabPanel("Custom", icon = icon("table"), value='custom', 
+                 miniContentPanel(  verbatimTextOutput("QC")   )  
+                 ) 
+    ) 
+) 
+
+server <- function(input, output, session) {
+  output$cars <- renderPlot({
+    require(ggplot2)
+    ggplot(cars, aes(speed, dist)) + geom_point()
+  })
+  output$print <- renderPrint(str(input$filename))
+  output$map <- renderLeaflet({
+    force(input$resetMap)
+
+    leaflet(quakes, height = "100%") %>% addTiles() %>%
+      addMarkers(lng = ~long, lat = ~lat)
+  })
+
+  output$table <- DT::renderDataTable({
+    diamonds
+  })
+  output$QC <- renderPrint(
+    print(input$tab)
+  ) 
+  
+  observeEvent(input$done, {
+    stopApp(TRUE)
+  })
+}
+
+runGadget(shinyApp(ui, server), viewer = paneViewer())
+
+}
+test()
+```
+
+```{r}
+N <- 20
+fdsa(d$Data, N=N, theta0=c(mean(x),sd(x),0,0),theta_min = c(-10,1E-5,-20,0),theta_max = c(20,30,10,20))
+```
+
+```{r}
+install.packages('leaflet')
+install.packages('DT')
+```
+```{r}
+
+ library(shiny)
+library(miniUI)
+library(leaflet)
+library(ggplot2)
+library(DT)
+test <-function(){
+ui <- miniPage(
+  gadgetTitleBar("Shiny gadget example"),
+  miniTabstripPanel(
+    miniTabPanel("Parameters", icon = icon("sliders"),
+      miniContentPanel(
+        sliderInput("year", "Year", 1978, 2010, c(2000, 2010), sep = "")
+      )
+    ),
+    miniTabPanel("Visualize", icon = icon("area-chart"),
+      miniContentPanel(
+        plotOutput("cars", height = "100%")
+      )
+    ),
+    miniTabPanel("Map", icon = icon("map-o"),
+      miniContentPanel(padding = 0,
+        leafletOutput("map", height = "100%")
+      ),
+      miniButtonBlock(
+        actionButton("resetMap", "Reset")
+      )
+    ),
+    miniTabPanel("Data", icon = icon("table"),
+      miniContentPanel(
+        DT::dataTableOutput("table")
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  output$cars <- renderPlot({
+    require(ggplot2)
+    ggplot(cars, aes(speed, dist)) + geom_point()
+  })
+
+  output$map <- renderLeaflet({
+    force(input$resetMap)
+
+    leaflet(quakes, height = "100%") %>% addTiles() %>%
+      addMarkers(lng = ~long, lat = ~lat)
+  })
+
+  output$table <- DT::renderDataTable({
+    diamonds
+  })
+
+  observeEvent(input$done, {
+    stopApp(TRUE)
+  })
+}
+
+runGadget(shinyApp(ui, server), viewer = paneViewer())
+
+}
+test()
+```
+```{r}
+
+ library(shiny)
+library(miniUI)
+library(leaflet)
+library(ggplot2)
+library(DT)
+test <-function(){
+ui <- miniPage(
+  gadgetTitleBar("Shiny gadget example"),
+  miniTabstripPanel(id='tab',selected="Custom",
+    miniTabPanel("Parameters", icon = icon("sliders"),
+      miniContentPanel( 
+        sliderInput("year1", "Year", 1978, 2010, c(2000, 2010), sep = "") 
+      )
+    ),
+    miniTabPanel("Visualize", icon = icon("area-chart"),
+      miniContentPanel(
+        sliderInput("year", "Year", 1978, 2010, c(2000, 2010), sep = "") ,
+        plotOutput("cars", height = "100%")
+      )
+    ),
+    miniTabPanel("Map", icon = icon("map-o"),
+      miniContentPanel(padding = 0,
+        leafletOutput("map", height = "100%")
+      ),
+      miniButtonBlock(
+        actionButton("resetMap", "Reset")
+      )
+    ),
+    miniTabPanel("Data", icon = icon("table"), 
+                 miniContentPanel(  DT::dataTableOutput("table")  ) 
+                 ), 
+    miniTabPanel("Custom", icon = icon("table"), value='custom', 
+                 miniContentPanel(  verbatimTextOutput("QC")   )  
+                 ) 
+    ) 
+) 
+
+server <- function(input, output, session) {
+  output$cars <- renderPlot({
+    require(ggplot2)
+    ggplot(cars, aes(speed, dist)) + geom_point()
+  })
+
+  output$map <- renderLeaflet({
+    force(input$resetMap)
+
+    leaflet(quakes, height = "100%") %>% addTiles() %>%
+      addMarkers(lng = ~long, lat = ~lat)
+  })
+
+  output$table <- DT::renderDataTable({
+    diamonds
+  })
+  output$QC <- renderPrint(
+    print(input$tab)
+  ) 
+  
+  observeEvent(input$done, {
+    stopApp(TRUE)
+  })
+}
+
+runGadget(shinyApp(ui, server), viewer = paneViewer())
+
+}
+test()
+```
+```{r}
+library(shiny)
+library(miniUI)
+library(leaflet)
+test <-function(){
+ui <- miniPage(
+  gadgetTitleBar("Try to access the miniTabstripPanel id in the Server Function"),
+  miniTabstripPanel(id='tab',selected="Custom", 
+                    miniTabPanel("Custom", icon = icon("table"), value='custom', miniContentPanel(  verbatimTextOutput("QC")   )  
+                 ) 
+    ) 
+) 
+server <- function(input, output, session) {
+    output$QC <- renderPrint(
+     str(input)
+  ) 
+}
+runGadget(shinyApp(ui, server), viewer = paneViewer())
+}
+test()
+```
+
+
+
+```{r}
+library(shiny)
+library(miniUI)
+library(leaflet)
+library(ggplot2)
+estimate_gk <- function() {
+  ui <- miniPage( 
+    miniContentPanel( 
+      # Application title 
+      gadgetTitleBar("G&K distribution",left=miniTitleBarCancelButton(),right=miniTitleBar('done',"Done")), 
+      # Sidebar with a slider input for number of bins  
+      minContentPanel(
+        fileInput('infile',"Select Data File")
+      ) 
+    ) 
+  )
+  server <- function(input,output, session){
+    }
+runGadget(shinyApp(ui,server), viewer = paneViewer()) 
+}
+estimate_gk()
+```
+
+
+`
+#
+#
+
+
