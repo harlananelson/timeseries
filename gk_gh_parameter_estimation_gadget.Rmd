@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library()
+```
+Make sure the proper libraries are loaded
+```{r}
+library(data.table)
+library(quadprog)
+library(tseries)
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(gk)
+library(shiny)
+library(miniUI)
+library(shiny)
+library(miniUI)
+library(ggplot2)
+library(miniPage)
+```
+
+This is a gadget to test the abilities of "abc" to estimate the parameters of a simulated function
+Run this chunk to load the function
+```{r}
+
+estimate_gk <- function() {
+  ui <- miniUI::miniPage( 
+    miniContentPanel( 
+      # Application title 
+      titlePanel("g&k distribution"), 
+      # Sidebar with a slider input for number of bins  
+      sidebarPanel(
+                sliderInput("obs",
+                     "Number of observations",
+                     min = 1,
+                     max = 5000,
+                     step = 10,
+                     value = 1000
+                     ) , 
+                sliderInput("rep",
+                     "Number of simulation replications",
+                     min = 1,
+                     max = 5000,
+                     step = 10,
+                     value = 1000
+                     )  
+                ,sliderInput("A", "A", min = -10, max = 10, step = 0.1, value = 3 ) 
+                ,sliderInput("B", "B", min = -10, max = 10, step = 0.1, value = 1 ) 
+                ,sliderInput("g", "g", min = -10, max = 10, step = 0.1, value = 2 ) 
+                ,sliderInput("h", "h", min =  0, max = 10, step = 0.1, value = 0.8 ) 
+ 
+                ),  
+      mainPanel( 
+        plotOutput("Plot") 
+        , verbatimTextOutput("stats")  
+        , verbatimTextOutput("stats_x")   
+        )   
+      )   
+    ) 
+ # Define server logic required to draw a histogram
+server <- function(input, output, session) {
+  rv <- reactiveValues(obs=1000)
+  my_data<-reactive({   
+    model<-'gh' 
+    rep=1000 
+    fields <- c('A','B','g','h') 
+    fn<-paste('r','gh',sep='')
+    rprior = function(n) { matrix(runif(4*n,-10,10), ncol=4) } 
+    x <-  do.call(fn,list(input$obs, A=input$A, B=input$B, g=input$g, h=input$h))  
+    my.param <- 
+      abc(x, N=input$obs, rprior=rprior, M=input$rep,model=model) %>% 
+      as.data.table() %>% 
+      tail(1) %>% 
+      as.list %>% 
+      `[`(fields) 
+    my.sim<-do.call(fn,c(input$obs,my.param)) 
+    d<-data.table::data.table(x=x,sim=my.sim) %>%  
+      gather("source","x",1:2) 
+  }) 
+  output$Plot <- renderPlot({
+    my_data() %>%  
+      ggplot() + geom_density(aes(x=x,fill=factor(source)),alpha=0.4) + scale_x_log10()  
+    })     
+  output$stats <- renderPrint({
+   summary(my_data() %>% filter(source == 'sim') %>% select(x) ) 
+    })
+    output$stats_x <- renderPrint({
+   summary(my_data() %>% filter(source == 'x') %>% select(x) ) 
+    })
+  } 
+# Run the application 
+runGadget(ui , server, viewer = browserViewer())
+}
+```
+Run this chunck to run the gadget that test "abc"
+```{r}
+estimate_gk()
+```
