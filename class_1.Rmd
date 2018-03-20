@@ -15,6 +15,7 @@ $\omega_t \sim N(0,\sigma^2)$
 
 MA(1)
 $x_t = \mu + \omega_t + \phi_1 \omega_{t-1}$
+ARIMA   Auto Regression  Differences   Moving average
 
 Start by loading useful libraries.
 xts seems to be the time series library many people are currently using.
@@ -24,13 +25,15 @@ quantmod lets you get financial data as well as do other things.
 https://github.com/joshuaulrich/quantmod
 tidyquant is the tidyverse frontend and makes quantmod easier.
 
+
+google "Core Functions in tidyquant"
 ```{r}
 # load packages ####
 # if you do not have these packages - install.packages('package name')
 library(tidyquant)
 library(quantmod)
 library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(ggplot2)
 library(lubridate)
 library(xts)
@@ -40,33 +43,37 @@ library(xts)
 It is possible to simulate a time series.  This will help you recognize what they look like.
 Here an AR(1) model with correlation of 0.9 is simulated.
 ```{r}
-date <- seq.Date(as.Date("2001/01/01"),as.Date("2003/01/01"),"days")
+date <- seq.Date(as.Date("2001/01/01"),as.Date("2013/01/01"),"days")
 l <- length(date)
-y <-arima.sim(model=list(ar=c(0.5)),n=l)
+y <-arima.sim(model=list(ar=c(0.99)),n=l)
 d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
 pacf(t)
+acf(t)
 ```
+
 How  about a AR(2)
 ```{r}
 date <- seq.Date(as.Date("2001/01/01"),as.Date("2003/01/01"),"days")
 l <- length(date)
-y <-arima.sim(model=list(ar=c(0.5,0.3)),n=l)
+y <-arima.sim(model=list(ar=c(0.6,0.3)),n=l)
 d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
 pacf(t)
+acf(t)
 ```
 How  about a AR(3)
 Try changing the parameters so the add up to more than 1.
 ```{r}
-date <- seq.Date(as.Date("2001/01/01"),as.Date("2003/01/01"),"days")
+date <- seq.Date(as.Date("2001/01/01"),as.Date("2012/01/01"),"days")
 l <- length(date)
-y <-arima.sim(model=list(ar=c(0.4,0.3,0.2)),n=l)
+y <-arima.sim(model=list(ar=c(0.5,0.1,0.1)),n=l)
 d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
+acf(t)
 pacf(t)
 
 ```
@@ -74,10 +81,11 @@ Here is a MA(1)
 ```{r}
 date <- seq.Date(as.Date("2001/01/01"),as.Date("2003/01/01"),"days")
 l <- length(date)
-y <-arima.sim(model=list(ma=c(0.6)),n=l)
+y <-arima.sim(model=list(ma=c(0.5)),n=l)
 d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
+pacf(t)
 acf(t)
 ```
 Here is a MA(2)
@@ -89,6 +97,7 @@ d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
 acf(t)
+pacf(t)
 ```
 Here is a MA(3)
 ```{r}
@@ -99,11 +108,12 @@ d <- data.frame(date=date,y=y)
 t <- xts(d[,-1],order.by = d[,1])
 plot(t)
 acf(t)
+pacf(t)
 ```
 Here is an ARIMA(1,0,1)
 Seems impossible to figure diagnose from the plots.
 ```{r}
-date <- seq.Date(as.Date("2001/01/01"),as.Date("2003/01/01"),"days")
+date <- seq.Date(as.Date("2001/01/01"),as.Date("2013/01/01"),"days")
 l <- length(date)
 y <-arima.sim(model=list(ma=0.6,ar=.8),n=l)
 d <- data.frame(date=date,y=y)
@@ -126,6 +136,15 @@ pacf(t)
 ```
 
 
+```{r}
+install.packages('XLConnect')
+install.packages('XLConnectJars')
+install.packages('rJava')
+library(XLConnectJars)
+library(XLConnect)
+tidyquant::tq_index_options()
+tq_index("SP500")
+```
 
 
 ```{r}
@@ -157,8 +176,16 @@ Oil and gold.
 https://blog.exploratory.io/introduction-to-tidyquant-quantitative-financial-analysis-for-tidyverse-habitats-e5f72a023ce2
 ```{r}
 oil <- tq_get("DCOILWTICO", get = "economic.data")
+names(oil)
+dim(oil)
+str(oil)
+head(oil)
+oil %>% na.omit() %>% pacf
+
 gold <- tq_get("GOLDAMGBD228NLBM", get = "economic.data")
 plot(gold)
+
+gold %>% na.omit() %>% pacf
 ```
 
 
