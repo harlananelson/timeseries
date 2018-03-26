@@ -1,15 +1,9 @@
 ---
-title: "plot_time_series"
-output: html_document
+title: "R Notebook"
+runtime: shiny
+output: html_notebook
 ---
 
-```{r}
-# clear workspace #### Good code practice to do first
-# need to install mise first!
-# removes all currently loaded packages, console, vars and figures from R
-#mise::mise(vars = TRUE, pkgs = TRUE, figs = TRUE, console = TRUE)
-```
-AR(1)
 $x_t = \delta +\phi_1 x_{t-1} + \omega_t$
 $\omega_t \sim N(0,\sigma^2)$
 

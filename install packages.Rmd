@@ -9,6 +9,8 @@ install.packages('Ecfun')
 install.packages('gdata')
 install.packages('gtools')
 install.packages('quadprog')
+install.packages('miniUI')
+
 ```
 
 ```{r}

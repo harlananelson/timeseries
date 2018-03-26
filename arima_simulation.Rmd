@@ -1,0 +1,91 @@
+---
+title: "Simulate Time Series"
+runtime: shiny
+output: html_document
+---
+This is an interactive document.  It interactively simmulates a Moving average order 1 model.
+The same code that could simulate the series non interactively is also included.
+
+Make sure you have the following packages installed on your system.
+```{r,echo=FALSE,message=FALSE}
+# load packages ####
+# if you do not have these packages - install.packages('package name')
+library(tidyquant)
+library(quantmod)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(xts)
+library(shiny)
+```
+
+```{r,echo=FALSE}
+inputPanel(
+  numericInput(inputId = "AR",label = "Degree of Auto Regression",min = 0,max = 10,step = 1,value=0),
+  numericInput(inputId = "MA",label = "Degree of Moving Average",min = 0,max = 10,step = 1,value=0),
+  numericInput(inputId = "Difference",label = "Number of Differences",min = 0,max = 3,step = 1,value=0),
+  sliderInput("phi","Correlation: ",min=0, max=.9999,value=0.5)
+)
+``` 
+```{r,eval=FALSE,include=FALSE}
+AR <- 3
+s <- seq(from=0, to=AR,by=1)
+choices <- paste0("AR",s)
+labels(choices) <- paste0("Auto Regressive")
+choices
+```
+```{r,include=FALSE}
+x <- list("AR 1" = "AR1")
+x
+```
+
+
+```{r,include=FALSE}
+eventReactive(input$AR,{
+  seq(from=0, to=input$AR,by=1)
+})
+```
+
+
+```{r,echo=FALSE}
+x <- reactive({ 
+  date <- seq.Date(as.Date("2001/01/01"),as.Date("2013/01/01"),"days") 
+  l <- length(date) 
+  y <-arima.sim(model=list(ar=c(input$phi)),n=l) 
+  d <- data.frame(date=date,y=y) 
+  x <- xts(d[,-1],order.by = d[,1]) 
+})
+```
+
+```{r,echo=FALSE}
+renderPlot({
+
+plot(x())
+ 
+})
+``` 
+```{r,echo=FALSE}
+renderPlot({
+pacf(x())
+})
+```
+
+
+```{r,echo=FALSE,include=FALSE,eval=FALSE}
+  date <- seq.Date(as.Date("2001/01/01"),as.Date("2013/01/01"),"days") 
+  l <- length(date) 
+  y <-arima.sim(model=list(ar=c(0.5)),n=l) 
+  d <- data.frame(date=date,y=y) 
+  x <- xts(d[,-1],order.by = d[,1]) 
+```
+
+```{r,echo=FALSE,include=FALSE,eval=FALSE}
+plot(x)
+``` 
+
+```{r,echo=FALSE,include=FALSE,eval=FALSE}
+pacf(x)
+```
+
+

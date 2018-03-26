@@ -1,0 +1,164 @@
+---
+title: "ma_1_construction"
+output: html_document
+---
+
+```{r,message=FALSE}
+source('library.R')
+```
+
+# Manually construct a first order moving average series.
+
+In statistical modeling there is usually a deterministic part and a random part.  
+In linear regression, there is the equation of line plus a random error.
+Here is the equation for a linear regression model predicting observation
+$Y_i$ from the predictor $X_i$
+
+Linear regression is a linear function of X plus a random observation.
+
+$$Y_i = m*X_i + b + \epsilon_i$$
+
+Change the index of the observation from $i$ to $t$ to represent time.
+Also use $\omega$ as the random error. Change the equation of the slope 
+to a simple $\mu$ to represent the mean model.
+
+This next change is where the terminology *time series* is applicable.
+Change both the $X_i$ and $Y_i$ to $x_t$.  The same symbol is used for both
+the predictor and the predicted.  A piece of yesterday is used to predict today. 
+A part of the error of yesterday is added to the new error for today.
+
+$$x_t = \mu + \omega_t + \theta_1\omega_{t-1}$$
+
+
+The term *moving* in *moving average* can be explained.  In time period 1, t is 1 and 
+t-1 is 0.  In time period 2, t is 2 and t-1 is 1.  The index is constantly *moving* as
+the time periods increase, so the *averaging* of the error $\omega$ by $\theta$ is moved to apply to the 
+most recent previous error term.  Let's look at an example sequence. The concept of the value
+at the current time being a function of the previous time period plus a random error
+is what makes time series analysis different from linear regression. The observations in time
+are correlated. But in sequence of non time related data as used in linear regression, the observations
+aren't correlated.  Next we will 
+manually simulate a MA(1) process.
+
+## Characteristics.
+Time series models account for characteristics in the data.  The MA(1) model 
+accounts for the moving average and and overall mean.  It does not account for
+any upward or downward trend.  Time series models add the ability to incorporate correlation 
+from one time point to the next, but you have to consider all the characteristics in the data.
+1. Trend up or down
+2. seasonality: week, month,year.
+3. Other cycles
+4. Model changes.  
+5. Change in variability
+6. outliers or extreme values.
+
+All this needs to be taken into consideration when fitting models.
+```{r}
+lag(1:10)
+#Simulate a MA(1) process.
+# First generate a vector of random normal variables
+# N is the number of observations
+N <- 1000
+average <- 14
+theta <- .8
+omega <- rnorm(N)
+
+date <- xts(order.by = seq.Date(from=today("EST") - N+1,to=today("EST"),"days"))
+x <- tibble(date = seq.Date(from=today("EST") - N+1,to=today("EST"),"days"), 
+            average = average,
+            omega = rnorm(N),
+            theta=theta) %>%  
+  mutate(omega_previous = lag(omega),
+         x = average + omega + theta*omega_previous) %>% 
+  select(date,x,omega,theta,omega_previous)
+```
+Now, let's run an analysis of this data.
+The ACF has an auto correlation up to position 1, so this is a MA(1) series as expected.
+
+The formula for the auto correlation $\phi$ is:
+
+$\phi_1 = \frac{\theta_1}{1 + \theta_1^2}$
+$\frac{0.8}{1+0.8^2} = \frac{0.8}{1 + 0.64} =`r 0.8/(1 + 0.64)`$
+
+This is very close to the value we see below.
+```{r}
+x %>% 
+  na.omit() %>%  
+  select(x) %>% 
+  acf()  
+```
+```{r}
+fit <- arima(x$x,order=c(0,0,1))
+glance(fit)
+```
+```{r}
+tidy(fit)
+```
+
+
+```{r}
+summary(fit)
+```
+
+Dickey Fuller test
+H0: Series in not stationary. $\pho = 1$
+H1: Series in stationary. $\pho <= 1$
+
+$x_t = \alpha + \rho x_{t-1} + \epsilon_t$
+$x_t - x_{t-1} = \alpha + (\rho - 1) x_{t-1} + \epsilon_t$
+$\Delta{x_t} = \alpha + \delta x_{t-1} + \epsilon_t$
+
+
+Augmented Dickey-Fuller Test for stationary
+```{r}
+x %>% na.omit() %$% 
+  adf.test(x)
+  
+```
+
+Test for serial correlation
+```{r}
+Box.test(resid(fit),type="Ljung",lag=6,fitdf=1)
+```
+
+
+
+## Exercise: Try to simulate a MA(2) series.
+The MA(2) series will have $\theta_1 and \theta_1$  
+These are the two moving average parameters.
+The formula for MA(2) is:
+$$x_t = \mu + \omega_t + \theta_1\omega_{t-1} + \theta_2\omega_{t-2}$$
+To simulate this series, add the calculation *averaging* the error in the 
+second lag by $\theta_2$.  Enter ```?dplyr::lag``` to see how to get the second lag.
+Try that now. 
+
+
+# Manually construct a first order auto regression series.
+
+
+
+
+
+# tq_get
+```{r}
+oil <- tq_get("DCOILWTICO", get = "economic.data")
+names(oil)
+dim(oil)
+str(oil)
+head(oil)
+oil %>% na.omit() %>% pacf
+
+gold <- tq_get("GOLDAMGBD228NLBM", get = "economic.data")
+plot(gold)
+
+
+gold %>% na.omit() %>% pacf
+```
+```{r}
+
+```
+
+
+
+
+

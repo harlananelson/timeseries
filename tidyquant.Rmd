@@ -1,0 +1,36 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyquant)
+library(dplyr)
+
+AAPL  <- tq_get("AAPL", get = "stock.prices", from = "2006-01-01")
+GOOG  <- tq_get("GOOG", get = "stock.prices", from = "2006-01-01")
+MSFT  <- tq_get("MSFT", get = "stock.prices", from = "2006-01-01")
+AMZN  <- tq_get("AMZN", get = "stock.prices", from = "2006-01-01")
+FB    <- tq_get("FB", get = "stock.prices", from = "2006-01-01")
+TWTR  <- tq_get("TWTR", get = "stock.prices", from = "2006-01-01")
+
+bind_rows("AAPL" = AAPL, "GOOG" = GOOG, "MSFT" = MSFT, "AMZN" = AMZN, "FB" = FB, "TWTR" = TWTR, .id = "id")
+```
+
+
+```{r}
+require(tidyquant)
+
+# Set category id for Oil and Gold.
+oil <- tq_get("DCOILWTICO", get = "economic.data")
+gold <- tq_get("GOLDAMGBD228NLBM", get = "economic.data")
+
+bind_rows("Oil" = oil, "Gold" = gold, .id = "commodity_name")
+```
+
+```{r}
+
+```
+
+
