@@ -29,6 +29,8 @@ A part of the error of yesterday is added to the new error for today.
 
 $$x_t = \mu + \omega_t + \theta_1\omega_{t-1}$$
 
+$$x_t = \mu + \omega_t + \theta_1\omega_{t-1} + \theta_2\omega_{t-2} $$
+
 
 The term *moving* in *moving average* can be explained.  In time period 1, t is 1 and 
 t-1 is 0.  In time period 2, t is 2 and t-1 is 1.  The index is constantly *moving* as
@@ -64,13 +66,14 @@ theta <- .8
 omega <- rnorm(N)
 
 date <- xts(order.by = seq.Date(from=today("EST") - N+1,to=today("EST"),"days"))
+date
 x <- tibble(date = seq.Date(from=today("EST") - N+1,to=today("EST"),"days"), 
             average = average,
             omega = rnorm(N),
             theta=theta) %>%  
-  mutate(omega_previous = lag(omega),
+  mutate(omega_previous = lag(omega,n=1L),
          x = average + omega + theta*omega_previous) %>% 
-  select(date,x,omega,theta,omega_previous)
+  select(date,x,average,omega,theta,omega_previous)
 ```
 Now, let's run an analysis of this data.
 The ACF has an auto correlation up to position 1, so this is a MA(1) series as expected.
@@ -92,6 +95,16 @@ fit <- arima(x$x,order=c(0,0,1))
 glance(fit)
 ```
 ```{r}
+#library(forecast)
+fit_2 <- auto.arima(x$x)
+broom::tidy(fit_2)
+```
+
+```{r}
+
+```
+
+```{r}
 tidy(fit)
 ```
 
@@ -101,8 +114,8 @@ summary(fit)
 ```
 
 Dickey Fuller test
-H0: Series in not stationary. $\pho = 1$
-H1: Series in stationary. $\pho <= 1$
+H0: Series in not stationary. $\phi = 1$
+H1: Series in stationary. $\phi <= 1$
 
 $x_t = \alpha + \rho x_{t-1} + \epsilon_t$
 $x_t - x_{t-1} = \alpha + (\rho - 1) x_{t-1} + \epsilon_t$
@@ -135,6 +148,17 @@ Try that now.
 
 # Manually construct a first order auto regression series.
 
+```{r}
+tq_get_options()
+
+```
+
+```{r}
+apl_stock_prices <- tidyquant::tq_get("AAPL")
+```
+```{r}
+
+```
 
 
 

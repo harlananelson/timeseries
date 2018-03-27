@@ -12,6 +12,7 @@ Make sure you have the following packages installed on your system.
 # load packages ####
 # if you do not have these packages - install.packages('package name')
 library(tidyquant)
+library(forecast)
 library(quantmod)
 library(dplyr)
 library(tidyverse)
@@ -48,6 +49,21 @@ renderPlot({
 acf(x())
 })
 ```
+```{r,echo=FALSE}
+renderPlot({
+pacf(x())
+})
+```
+
+```{r}
+renderPrint({
+fit_2 <- auto.arima(x())
+broom::tidy(fit_2) 
+})
+
+```
+
+
 ```{r}
 renderPrint({
   arima(x(),order = c(0,0,2)) 
