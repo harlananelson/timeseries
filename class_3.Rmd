@@ -1,0 +1,210 @@
+---
+title: "Basic Time Series Constructions"
+subtitle: "Moving Average and Auto Regression"
+output: html_document
+---
+
+```{r,message=FALSE}
+source('library.R')
+```
+
+A time series is a a set of data points measured over time.  Generally the measurements are over equaly 
+spaced  time intervals such as days, weeks, months, or years.  One example could be the increase or 
+decrease in an investment after purchase.  The measurement would start at zero then change each day.
+The mathematical notation uses $X_t$ to index an obvervatrion $X$ at time $t$.
+
+t (days)  | $X_t$ Change from buying price |  Concrete value
+----------|--------------------------------|---------------
+0         | 0                              |     0
+1         | $\epsilon_1$                   |     1.2
+2         | ?                              |     ?
+
+The stock is bought and increases in value by 1.2 on the first day.
+
+Short term gain or loss in the commodities market is thought to be due to random variation 
+and previous market values.
+The random variation is represented by $\epsilon_t$ and is called the error term at time $t$.
+It is a random variable drawn from the normal distribution with a mean zero and unknown 
+variance.  
+
+In the ARIMA model, here are three groups of values that go into each day's commoditiy price:
+the current time period's error term $\epsilon_t$, all the previous time periods valuations $X_0 \dots X_{t-1}$, 
+and all the previous time periods error terms $\epsilon_0 \dots \epsilon_{t-1}$.  ARIMA is the specification for parameterizing 
+a function of the later two groups of values to predict new observations or fit current observations.
+Future error terms $\epsilon_{t+i}$ cannot be predicted, and interestingly enough, current and 
+past error terms can't be observed.
+$\hat{X_t}$
+But we can measure the actual commodity value, which includes that error term, and subtract 
+out our prediction to get a predition of the error term $\epsilon_t = X_t - \hat{X_t}$
+
+
+ARIMA time series
+
+At each time period, there is the addition of this random normal realization, but also 
+the previous random effects 
+But what is the model for $t=2$?  We know that the value it closes at
+after the first day has to be the value it starts at the next.  But how will that
+information be incorporated into a mathematical model?  For starters, we can just use a 
+portion of the  $\epsilon_1$ value.   
+
+
+One method of modeling time series data is called ARIMA.  
+This method combines three ways to introduce parameters into a model used to forcast 
+future observations or describe observed observations.  The proportion of the previous error
+can be represented by $\theta$.  Here is an example for the case where $\theta=0.4$.
+
+t (days)  | $X_t$ Change from buying price     | Notation  | $\theta_1$ | $\epsilon$ | Concrete value
+----------|------------------------------------|-----------|------------|-----------|---------
+0         | 0                                  | $X_0$     |    N/A     | N/A       | 0 
+1         | $\epsilon_1$                       | $X_1$     |    N/A     | 1.2       | 1.2
+2         | $\theta_1 \epsilon_1 + \epsilon_2$ | $X_2$     |    0.4     | -0.5      | `r 0.4*1.2 -0.5`
+
+This model show above is $ X_t = 0.4 \epsilon_{t-1} + \epsilon_t $
+Each observation is just a portion of the error in the previous observation plus the new error amount.
+The problem, the actual error cannot be measured.  Only the resulting loss or gain in the stock
+can be measured.  
+
+
+
+1. **A**uto **R**egressive
+2. **I**ntegrated (Differences)
+3. **M**oving **A**verage
+
+
+Let $X_i$ measure the distance a point is from where is starts. 
+Time Series
+: An ordered set of responses equally spaced in time.  For example, observations recorded 
+every day, week, or month. 
+$Y_i = \text{A function of the previous observations and previous errors} + \text{current error}$
+
+Auto Regressive
+: Future observations are modeled as a function of previous observations.
+
+Integrated
+: The differences of an observation minus a prevous observations is modeled.
+
+```{r}
+library(tidyquant)
+library(forecast)
+library(magrittr)
+library(ggplot2)
+library(ggfortify)
+library(xts)
+library(tidyverse)
+```
+
+# Goals for Monday April 2.
+1. Simulate ARIMA time series, and estimate the parameters.  
+2. Experiment with the length of the time series to see how long a time series needs to be to 
+generate accurate parameter estimates.
+3. Experiment with the frequency and use seasonal parameters to estimate.
+4. Simulate some series that are not stable, estimate them.
+5. Talk about the mathematical representation of a series and the roots of $\phi(L)$ 
+If the roots are outside the unit circle, then the series is stable.  
+6. Talk about what seasonality is. 
+7. Load various time series, fit them.
+8. Plot times series and their fits.
+9. Use tests to stationarity.
+Apply the tests illustrated by Hila in http://www.statosphere.com.au/check-time-series-stationary-r/
+10. Use `diff` to calculate differences. 
+
+
+## Create a simulated time series as  time series object and as an xts object and compare.
+
+* There are three estimates, 
+  1. The estimate of the times series
+  2. The estimate of the xts object
+  3. The estimate resulting from auto.arima
+* The frequency must be set to 4 to get quarterly data.
+* The ats estimate will not be correct unless the attribute of frequency is also set.
+* All three estimate will be the same if the length of the time series is long enough.
+
+Exercise: change this to simulate a 12 month, yearly cycle.  Experiement with the length of the
+series.  How short can you make it and still get auto.arima to work correctly?
+
+What happens if the frequency is not specified correctly?
+
+Does the length needed to get auto.arima depend on the magnitude of the seasonal
+and not seasonal parameters?
+
+The resolution of the simulated time series can be 
+    * year = "Y"
+    * month = "m"
+    * day = 'd'
+    * hour = "H"
+    * mins = 'M',
+    * secs = 'S
+Simulate a time series that is observed every day instead of every month using '2006//d'.
+```{r}
+set.seed(125)
+l=2000
+dates <-timeBasedSeq('2006//m',length=l)
+parameters <- list(model=list(ar=c(0,0,0,0.8), ma=0.5),n=l)
+y <- ts(do.call(arima.sim,parameters),frequency=4)
+fit_y <- arima(y, order=c(0,0,1), seasonal=list(order=c(1,0,0)), include.mean=FALSE)
+c(coef(fit_y), sigma2 = fit$sigma2)
+x <-xts(y,order.by = dates,descr="Simulated xts object")
+colnames(x) <- c("rate")
+attr(x,'frequency') <-4
+fit_x    <- arima(x, order=c(0,0,1), seasonal=list(order=c(1,0,0)),include.mean=FALSE)
+c(coef(fit_x), sigma2 = fit$sigma2)
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+install.packages('tsdecomp')
+library(tsdecomp)
+roots.allocation(fit_auto)
+```
+
+
+
+It turns out sweep is the broom package for forcasts.
+
+http://www.business-science.io/code-tools/2017/07/09/sweep-0-1-0.html
+
+
+
+
+
+
+```{r}
+tidyquant::tq_get_options()
+
+```
+
+```{r}
+from <- today() - years(1)
+AAPL <- tidyquant::tq_get("AAPL",get = "stock.prices",from = from)
+```
+
+```{r}
+plot(AAPL)
+AAPL %>% 
+  select(date, close) %>% 
+  tq_mutate( mutate_fun = arima(order=c(1,0,0)))
+```
+
+
+
+# tq_get
+```{r}
+oil <- tq_get("DCOILWTICO", get = "economic.data")
+names(oil)
+dim(oil)
+str(oil)
+head(oil)
+oil %>% na.omit() %>% pacf
+
+gold <- tq_get("GOLDAMGBD228NLBM", get = "economic.data")
+plot(gold)
+
+
+gold %>% na.omit() %>% pacf
+```
+```{r}
+
+```
+
+
+
+
+
