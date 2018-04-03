@@ -82,9 +82,15 @@ Auto Regressive
 
 Integrated
 : The differences of an observation minus a prevous observations is modeled.
+```{r}
+install.packages('ggfortify')
+install.packages('sweep')
+```
 
 ```{r}
 library(tidyquant)
+library(broom)
+library(sweep)
 library(forecast)
 library(magrittr)
 library(ggplot2)
@@ -137,23 +143,115 @@ The resolution of the simulated time series can be
 Simulate a time series that is observed every day instead of every month using '2006//d'.
 ```{r}
 set.seed(125)
-l=2000
-dates <-timeBasedSeq('2006//m',length=l)
-parameters <- list(model=list(ar=c(0,0,0,0.8), ma=0.5),n=l)
+l=10000
+dates <-timeBasedSeq('20060204//m',length=l)
+parameters <- list(  model=list(ar=c(0,0,0,0.8), ma=c(0.5)),   n=l)
 y <- ts(do.call(arima.sim,parameters),frequency=4)
 fit_y <- arima(y, order=c(0,0,1), seasonal=list(order=c(1,0,0)), include.mean=FALSE)
-c(coef(fit_y), sigma2 = fit$sigma2)
+c(coef(fit_y), sigma2 = fit_y$sigma2)
 x <-xts(y,order.by = dates,descr="Simulated xts object")
 colnames(x) <- c("rate")
+attr(x,'frequency') 
+
+# Fit without the frequency.  Seasonal adjustment will be wrong.
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+sweep::sw_tidy(fit_auto)
+sweep::sw_tidy(x)
+
 attr(x,'frequency') <-4
+attr(x,'frequency') 
+
 fit_x    <- arima(x, order=c(0,0,1), seasonal=list(order=c(1,0,0)),include.mean=FALSE)
-c(coef(fit_x), sigma2 = fit$sigma2)
+c(coef(fit_x), sigma2 = fit_x$sigma2)
+
 fit_auto <- auto.arima(x)
 broom::tidy(fit_auto)
 install.packages('tsdecomp')
 library(tsdecomp)
 roots.allocation(fit_auto)
 ```
+Create a non stationary the needs one difference to stablize. 
+```{r}
+set.seed(125)
+l=10000
+dates <-timeBasedSeq('20060204//m',length=l)
+parameters <- list(  model=list(order=c(12,1,3),ar=c(0,0,0,0,0,0,0,0,0,0,0,0.4), ma=c(0.5,0,.1)),   n=l)
+y <- ts(do.call(arima.sim,parameters),frequency=12)
+fit_y <- arima(y, order=c(0,1,3), seasonal=list(order=c(1,0,0)), include.mean=FALSE)
+c(coef(fit_y), sigma2 = fit_y$sigma2)
+sweep::sw_tidy(fit_y)
+sweep::sw_glance(fit_y)
+x <-xts(y,order.by = dates,descr="Simulated xts object")
+colnames(x) <- c("rate")
+attr(x,'frequency') 
+
+# Fit without the frequency.  Seasonal adjustment will be wrong.
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+sweep::sw_tidy(fit_auto)
+sweep::sw_tidy(x)
+
+attr(x,'frequency') <-4
+attr(x,'frequency') 
+
+fit_x    <- arima(x, order=c(0,0,1), seasonal=list(order=c(1,0,0)),include.mean=FALSE)
+c(coef(fit_x), sigma2 = fit_x$sigma2)
+
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+install.packages('tsdecomp')
+library(tsdecomp)
+roots.allocation(fit_auto)
+```
+```{r}
+Acf(y)
+```
+
+
+```{r}
+Pacf(y)
+```
+```{r}
+Box.test(y,lag=5,type="Ljung-Box")
+```
+```{r}
+tseries::adf.test(y,alternative="stationary")
+```
+```{r}
+tseries::kpss.test(y)
+```
+
+
+
+
+
+
+```{r}
+print(dates)
+print(y_0)
+print(y)
+print(x)
+1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
