@@ -35,6 +35,8 @@ x <- reactive({
 })
 ```
 
+all the results of the fit.  
+
 ```{r,echo=FALSE}
 renderPlot({
 

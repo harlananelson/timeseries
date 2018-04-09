@@ -1,11 +1,96 @@
 ---
-title: "ma_1_construction"
+title: "Basic Time Series Constructions"
+subtitle: "Moving Average and Auto Regression"
 output: html_document
 ---
 
 ```{r,message=FALSE}
 source('library.R')
 ```
+
+A time series is a a set of data points measured over time.  Generally the measurements are over equaly 
+spaced  time intervals such as days, weeks, months, or years.  One example could be the increase or 
+decrease in an investment after purchase.  The measurement would start at zero then change each day.
+The mathematical notation uses $X_t$ to index an obvervatrion $X$ at time $t$.
+
+t (days)  | $X_t$ Change from buying price |  Concrete value
+----------|--------------------------------|---------------
+0         | 0                              |     0
+1         | $\epsilon_1$                   |     1.2
+2         | ?                              |     ?
+
+The stock is bought and increases in value by 1.2 on the first day.
+
+Short term gain or loss in the commodities market is thought to be due to random variation 
+and previous market values.
+The random variation is represented by $\epsilon_t$ and is called the error term at time $t$.
+It is a random variable drawn from the normal distribution with a mean zero and unknown 
+variance.  
+
+In the ARIMA model, here are three groups of values that go into each day's commoditiy price:
+the current time period's error term $\epsilon_t$, all the previous time periods valuations $X_0 \dots X_{t-1}$, 
+and all the previous time periods error terms $\epsilon_0 \dots \epsilon_{t-1}$.  ARIMA is the specification for parameterizing 
+a function of the later two groups of values to predict new observations or fit current observations.
+Future error terms $\epsilon_{t+i}$ cannot be predicted, and interestingly enough, current and 
+past error terms can't be observed.
+$\hat{X_t}$
+But we can measure the actual commodity value, which includes that error term, and subtract 
+out our prediction to get a predition of the error term $\epsilon_t = X_t - \hat{X_t}$
+```{r}
+library(forecast)
+library(magrittr)
+library(ggplot2)
+library(ggfortify)
+library(xts)
+library(tidyverse)
+```
+
+
+
+ARIMA time series
+
+At each time period, there is the addition of this random normal realization, but also 
+the previous random effects 
+But what is the model for $t=2$?  We know that the value it closes at
+after the first day has to be the value it starts at the next.  But how will that
+information be incorporated into a mathematical model?  For starters, we can just use a 
+portion of the  $\epsilon_1$ value.   
+
+
+One method of modeling time series data is called ARIMA.  
+This method combines three ways to introduce parameters into a model used to forcast 
+future observations or describe observed observations.  The proportion of the previous error
+can be represented by $\theta$.  Here is an example for the case where $\theta=0.4$.
+
+t (days)  | $X_t$ Change from buying price     | Notation  | $\theta_1$ | $\epsilon$ | Concrete value
+----------|------------------------------------|-----------|------------|-----------|---------
+0         | 0                                  | $X_0$     |    N/A     | N/A       | 0 
+1         | $\epsilon_1$                       | $X_1$     |    N/A     | 1.2       | 1.2
+2         | $\theta_1 \epsilon_1 + \epsilon_2$ | $X_2$     |    0.4     | -0.5      | `r 0.4*1.2 -0.5`
+
+This model show above is $ X_t = 0.4 \epsilon_{t-1} + \epsilon_t $
+Each observation is just a portion of the error in the previous observation plus the new error amount.
+The problem, the actual error cannot be measured.  Only the resulting loss or gain in the stock
+can be measured.  
+
+
+
+1. **A**uto **R**egressive
+2. **I**ntegrated (Differences)
+3. **M**oving **A**verage
+
+
+Let $X_i$ measure the distance a point is from where is starts. 
+Time Series
+: An ordered set of responses equally spaced in time.  For example, observations recorded 
+every day, week, or month. 
+$Y_i = \text{A function of the previous observations and previous errors} + \text{current error}$
+
+Auto Regressive
+: Future observations are modeled as a function of previous observations.
+
+Integrated
+: The differences of an observation minus a prevous observations is modeled.
 
 # Manually construct a first order moving average series.
 
@@ -100,14 +185,6 @@ fit_2 <- auto.arima(x$x)
 broom::tidy(fit_2)
 ```
 
-```{r}
-
-```
-
-```{r}
-tidy(fit)
-```
-
 
 ```{r}
 summary(fit)
@@ -149,7 +226,7 @@ Try that now.
 # Manually construct a first order auto regression series.
 
 ```{r}
-tq_get_options()
+tidyquant::tq_get_options()
 
 ```
 

@@ -1,0 +1,292 @@
+---
+title: "Examples using tidyquant"
+output: html_notebook
+---
+
+## Step by step use of tidyquant.
+
+This notebook shows steps in using some functionality in tidyquant.  
+
+A good page that explains times series fitting and diagnostics is 
+https://people.duke.edu/~rnau/411arim.htm
+
+Here are some other pages with usefull information.
+
+* https://stats.stackexchange.com/questions/108374/arima-intervention-transfer-function-how-to-visualize-the-effect
+* https://stackoverflow.com/questions/25224155/transfer-function-models-arimax-in-tsa
+* https://cran.r-project.org/web/packages/TSA/TSA.pdf
+* https://stats.stackexchange.com/questions/17533/how-is-arma-arima-related-to-mixed-effects-modeling
+
+Here are some useful packages.
+```{r}
+library(tseries)
+library(lubridate)
+library(tidyverse)
+library(glue)
+library(magrittr)
+library(tidyquant)
+library(shiny)
+library(timetk)
+```
+
+Class notes.
+
+* use gf_get to download finanial data
+* Fit the models.
+* Get predicted values and confidence interveals
+* output the residual.
+* Run correlations tests on the residuals.
+* Note points where the residuals go outside the confidence bounds. 
+* get economic data from census.
+* Run fits on that data.
+* Correlate times series models to other linear trend data.
+
+## A query flow
+
+tidyquand is an ecosystem for tidy evaluation of time series data.
+
+First use `tq_index_options` or `tq_exchange_options` to get the possible indexes or exchanges
+
+Options.
+```{r}
+index_options     <- tq_index_options()
+print(index_options)
+```
+Exchanges.
+```{r}
+exchange_options  <- tq_exchange_options()
+print(exchange_options)
+```
+Enter the index you want into `tq_index` to get all the stocks in that index.  
+If you saved the list of indexes into a vector, then you can select the index you want from 
+that vector.
+```{r}
+print(index_options[7])
+```
+
+```{r}
+company_table <- tq_index(index_options[7])
+print(company_table)
+```
+Enter the exchange you want into `tq_exchange` to get all the stocks in that exchange.
+If you saved the list of exchanges in a vector, then you can select the exchange you want 
+from that vector. 
+```{r}
+print(exchange_options[3]) 
+```
+
+```{r}
+company_table_exchange <- tq_exchange(exchange_options[3])
+print(company_table_exchange)
+```
+The function `tq_exchange` will return a list of Companies.  You can provide one or many of 
+those companies to `tq_get` to retrieve a data set for that company.
+
+
+Extract the data for the second company listed.
+```{r}
+company_table_exchange[2,]
+```
+Here we use `tq_get` to return a list of stock prices.  
+Notice we use the output from tq_exchange as the paramter for tq_get.
+
+```{r}
+tq_get(company_table_exchange[2,],get = "stock.prices")
+```
+In addition to asking for *stock.prices* there are a number of other measures that can be retreived.
+The list of options is returned by the function `tq_get_options`
+```{r}
+tq_get_options()
+```
+Note every options works for every possible `tq_get` entry. Here are some options that work.
+Notice we can include the options as a vector.  
+```{r}
+i <- c(1,6)
+#i <-1
+print(tq_get_options()[i])
+d<-tq_get(company_table_exchange[2,],get=tq_get_options()[i])
+head(d)
+
+```
+It is interesting to note that both options 1 and 6 can be selected at the same time.
+More than one company can also be selected at the same time.
+```{r}
+i <- c(1,6)
+print(tq_get_options()[i])
+d<-tq_get(company_table_exchange[2:3,],get=tq_get_options()[i])
+head(d)
+
+```
+The result is a table of tables, or actually a tibble of tibbles.  Here the tibble of *stock.prices* for
+*MMM* is selected using dplyr verbs. 
+```{r}
+d %>% filter(symbol == "MMM") %>% 
+  select(symbol,company,last.sale.price,market.cap,ipo.year,sector,industry,stock.prices) %>%  
+  unnest
+```
+It is also possible to use mapping (functional programming) operators such as `purrr` to run analysis on 
+the results of nested tibbles.  That is not discussed here yet, but it is the main reason for the nested tibble data structure. 
+That is part of the function programming approach to analysis.
+
+Let's go back to the simple case.  We will show `tq_mutate` with `ohlc_fun` and `mutate_fun`. 
+```{r}
+i <-1
+print(tq_get_options()[i])
+```
+
+Select the tibble for *Medical/Dental Instruments*.
+```{r}
+d<-tq_get(company_table_exchange[2,],get=tq_get_options()[i])
+head(d)
+```
+The `select` and `mutate_fun` work together.  The first selects the column or variables from 
+*open*, *high*, *low* and *close* and sends them to the function selected by the `mutate_fun` parameter.
+In this case the `ohlc_fun` is selecting the *closing* price and sending it to the simple 
+moving average function *SMA* indicated by the `mutate_fun` parameter.  The *Simple Moving Average* (*SMA*)
+function requires the parameter indicating the number of periods used to calculate the average.
+This *Simple Moving Average* is not and *ARIMA* moving average even though it might be possble to 
+specify the same model with *ARMIA*.
+
+The `dplr` verb *gather* is used to transpose the data from having the three columns
+*close*, *SMA.15* and *SMA.50* to instead having one column called price and one column called
+*type* with with either *close*, *SMA.15* or *SMA.50* depending on what value was contained by that 
+row.  This is a transpose from a *wide* data format to a *long* data format.  
+With a wide format, the *close*, *SMA.15* and *SMA.50* values are in two separate columns.
+Witht the long format, the *close*, *SMA.15* and *SMA.50* values are in separte rows.  
+So, with the wide format, values are differentiated by their columns, but in the long 
+format, values are diferentiated by their rows and field dedicated to tagging the value.
+Each value is tagged by the column  type to indicate if it is *close*, *SMA.15* or *SMA.50*.
+```{r}
+
+print(two_dates)
+dl <-  d %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=15) %>% 
+  rename(SMA.15 = SMA) %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=50) %>% 
+  rename(SMA.50 = SMA) %>% 
+  select(date,close,SMA.15,SMA.50)  %>% 
+  gather(key = type, value=price, c("close","SMA.15","SMA.50"))
+head(dl)
+
+```
+```{r}
+# Select two dates used to display a piece of the final tibble.
+two_dates <- dl %>% 
+  select(date,type,price) %>% 
+  filter(type == "SMA.50") %>% 
+  na.omit() %>% 
+  slice(1:2) %>% 
+  select(date)
+dl %>% inner_join(two_dates) %>% 
+  group_by(type) %>% 
+  sample_n(2)   %>% 
+  ungroup()
+```
+
+Now ggplot is used to plot the results.  The function `scale_colour` is used to specify the 
+colors used.  This is good idea because colors are very important for making the
+plot readable and the designer needs to have control over this aesthetic.  
+One goal in color selection is to make the color distinct even for people who are 
+color blind.
+
+Looking at this plot, in my opinion, it is clear that people who have investments need to 
+look at the 50 day moving average, not the day to day close to see how their stock is
+ performing.  All the historical spikes are completely irrelevent.  If you react to a movement 
+ you did not predict, you are just giving your money to someone who did.  
+```{r}
+my_palette <- c("black", "blue", "red")
+dl %>% 
+  na.omit() %>% 
+  ggplot() +
+  aes(x=date,y=price,col = type) +
+  geom_line() +
+  scale_colour_manual(values = my_palette)
+```
+
+
+
+
+
+
+Lets look at a closup of this series.  In financial analysis, there is something called
+*Technical Analysis*  This includes rules on what to do if the 50 day moving averate instecects 
+with the  15 day moving average. Those intersections are clearly visible in the chart
+below.
+```{r}
+my_palette <- c("black", "blue", "red")
+dl %>% 
+  na.omit() %>% 
+  filter(between(date,left = lubridate::as_date('20160101'), right=lubridate::as_date('20180101'))) %>% 
+  ggplot() +
+  aes(x=date,y=price,col = type) +
+  geom_line() +
+  scale_colour_manual(values = my_palette)
+```
+Notice that we used  `tq_mutate(select = close, mutate_fun = SMA, n=15)`
+`tq_mutate` has a small list if fuctions that can be used inside of tq_mutate.  
+It does not accept any arbitrary function Here is a list of the possible functions.
+Unfortunatedly I don't see and `arima`, `acf` or `pacf` function.  More research on this
+is needed. There are no `forecast` functions.
+
+```{r}
+tq_mutate_fun_options()
+```
+
+It is possible to calculate lags using `xts` commands.  The series is converted to time series using
+`tk_xts`.  This seems like a good way to make the conversion.
+```{r}
+dl %>% select(date,price,type) %>% 
+  filter(type == "close") %>% 
+  tk_xts(silent = TRUE) %>% 
+  lag.xts(k = 1:5)
+```
+We can, with some manipulation use the data with the forcast package.
+
+```{r}
+dc <-dl %>% select(date,price,type) %>%  
+  filter(type == "close")  %>% 
+  select(date,price)  %>% 
+  na.omit() %>% 
+  tk_xts(silent = TRUE) %$%
+  forecast::Acf(price)
+```
+Here the auto.arima function is used. 
+```{r}
+dc <-dl %>% select(date,price,type) %>%  
+  filter(type == "close")  %>% 
+  select(date,price)  %>% 
+  na.omit() %>% 
+  tk_xts(silent = TRUE) %$%
+  forecast::auto.arima(price)
+print(dc)
+```
+Do the residuals have a constant variance?
+The variability appears to be increasing.
+```{r}
+plot(resid(dc))
+```
+
+An `Acf` of the residuals shows that `auto.arima` did a pretty good job.
+```{r}
+forecast::Acf(resid(dc))
+```
+
+How about the `Pacf`?
+```{r}
+forecast::Pacf(resid(dc))
+```
+
+The Augmented Dickey Fuller Test has a high type I error rate.  
+The chance of rejecting the null hypothesis when it is true is high.
+The alternate hypothesis is that the series is stationary, so in this
+case, the Augmented Dickey-Fuller Test shows that the residuals are stationary 
+and the model does not need more differencing.  
+Running this test on the residuals is a great idea.
+
+```{r}
+tseries::adf.test(resid(dc))
+```
+With a smaller data set, the null is not rejected.  More data means more power.  
+```{r}
+tseries::adf.test(resid(dc)[1:50])
+```
