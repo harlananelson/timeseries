@@ -12,11 +12,23 @@ knitr::opts_chunk$set(
 	warning = FALSE
 )
 ```
+```{r}
+library(tidyquant)
+```
 
 ```{r}
-library(tidyverse,magrittr,tidyquant)
+library(tidyverse,magrittr)
 library(ggplot2)
+library(magrittr)
 ```
+```{r}
+quantmod::getSymbols.FRED('gdp')  
+```
+```{r}
+tq_get("MEHOINUSA672N",get="economic.data") 
+```
+
+
 
 ```{r}
 d <- tq_get("CLF16OV",get="economic.data") %>% 

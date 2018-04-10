@@ -31,7 +31,7 @@ library(timetk)
 
 Class notes.
 
-* use gf_get to download finanial data
+* use tq_get to download finanial data
 * Fit the models.
 * Get predicted values and confidence interveals
 * output the residual.
@@ -68,6 +68,12 @@ print(index_options[7])
 company_table <- tq_index(index_options[7])
 print(company_table)
 ```
+```{r}
+company_table  %>% 
+  summarise(sum = sum(weight))
+
+```
+
 Enter the exchange you want into `tq_exchange` to get all the stocks in that exchange.
 If you saved the list of exchanges in a vector, then you can select the exchange you want 
 from that vector. 
@@ -113,6 +119,7 @@ More than one company can also be selected at the same time.
 ```{r}
 i <- c(1,6)
 print(tq_get_options()[i])
+company_table_exchange[2:3,]
 d<-tq_get(company_table_exchange[2:3,],get=tq_get_options()[i])
 head(d)
 
@@ -129,10 +136,6 @@ the results of nested tibbles.  That is not discussed here yet, but it is the ma
 That is part of the function programming approach to analysis.
 
 Let's go back to the simple case.  We will show `tq_mutate` with `ohlc_fun` and `mutate_fun`. 
-```{r}
-i <-1
-print(tq_get_options()[i])
-```
 
 Select the tibble for *Medical/Dental Instruments*.
 ```{r}
@@ -141,7 +144,7 @@ head(d)
 ```
 The `select` and `mutate_fun` work together.  The first selects the column or variables from 
 *open*, *high*, *low* and *close* and sends them to the function selected by the `mutate_fun` parameter.
-In this case the `ohlc_fun` is selecting the *closing* price and sending it to the simple 
+Use the 
 moving average function *SMA* indicated by the `mutate_fun` parameter.  The *Simple Moving Average* (*SMA*)
 function requires the parameter indicating the number of periods used to calculate the average.
 This *Simple Moving Average* is not and *ARIMA* moving average even though it might be possble to 
@@ -156,19 +159,7 @@ Witht the long format, the *close*, *SMA.15* and *SMA.50* values are in separte 
 So, with the wide format, values are differentiated by their columns, but in the long 
 format, values are diferentiated by their rows and field dedicated to tagging the value.
 Each value is tagged by the column  type to indicate if it is *close*, *SMA.15* or *SMA.50*.
-```{r}
 
-print(two_dates)
-dl <-  d %>% 
-  tq_mutate(select = close, mutate_fun = SMA, n=15) %>% 
-  rename(SMA.15 = SMA) %>% 
-  tq_mutate(select = close, mutate_fun = SMA, n=50) %>% 
-  rename(SMA.50 = SMA) %>% 
-  select(date,close,SMA.15,SMA.50)  %>% 
-  gather(key = type, value=price, c("close","SMA.15","SMA.50"))
-head(dl)
-
-```
 ```{r}
 # Select two dates used to display a piece of the final tibble.
 two_dates <- dl %>% 
@@ -181,6 +172,29 @@ dl %>% inner_join(two_dates) %>%
   group_by(type) %>% 
   sample_n(2)   %>% 
   ungroup()
+```
+```{r}
+d %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=15) %>% 
+  rename(SMA.15 = SMA) %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=50) %>% 
+  rename(SMA.50 = SMA) %>% 
+  select(date,close,SMA.15,SMA.50)  
+```
+
+
+
+```{r}
+
+dl <-  d %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=15) %>% 
+  rename(SMA.15 = SMA) %>% 
+  tq_mutate(select = close, mutate_fun = SMA, n=50) %>% 
+  rename(SMA.50 = SMA) %>% 
+  select(date,close,SMA.15,SMA.50)  %>% 
+  gather(key = type, value=price, c("close","SMA.15","SMA.50"))
+head(dl)
+
 ```
 
 Now ggplot is used to plot the results.  The function `scale_colour` is used to specify the 
@@ -234,6 +248,8 @@ tq_mutate_fun_options()
 
 It is possible to calculate lags using `xts` commands.  The series is converted to time series using
 `tk_xts`.  This seems like a good way to make the conversion.
+
+rollapply 
 ```{r}
 dl %>% select(date,price,type) %>% 
   filter(type == "close") %>% 
@@ -249,6 +265,14 @@ dc <-dl %>% select(date,price,type) %>%
   na.omit() %>% 
   tk_xts(silent = TRUE) %$%
   forecast::Acf(price)
+```
+```{r}
+dc <-dl %>% select(date,price,type) %>%  
+  filter(type == "close")  %>% 
+  select(date,price)  %>% 
+  na.omit() %>% 
+  tk_xts(silent = TRUE) %$%
+  forecast::Pacf(price)
 ```
 Here the auto.arima function is used. 
 ```{r}
@@ -270,6 +294,14 @@ An `Acf` of the residuals shows that `auto.arima` did a pretty good job.
 ```{r}
 forecast::Acf(resid(dc))
 ```
+```{r}
+sweep::sw_glance(dc)
+```
+
+```{r}
+forecast::Pacf(resid(dc))
+```
+
 
 How about the `Pacf`?
 ```{r}
