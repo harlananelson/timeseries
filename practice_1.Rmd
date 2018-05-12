@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+source('library.R')
+```
+
+```{r}
+tq_get_options()
+```
+```{r}
+from <- today() - years(1)
+AAPL <- tq_get("AAPL", get = "stock.prices", from = from)
+AAPL
+```
+```{r}
+# Get of list of the tq_mutate() options
+tq_mutate_fun_options() %>% 
+  select(zoo) %>% 
+  str()
+```
+```{r}
+AAPL %>% 
+  tq_mutate(ohlc_fun = Cl, mutate_fun = SMA, n = 15) %>% 
+  rename(SMA.15 = SMA) %>% 
+  tq_mutate(ohlc_fun = Cl, mutate_fun = SMA, n = 50) %>% 
+  rename(SMA.50 = SMA)
+```
+```{r}
+AAPL %>% 
+  tq_mutate_xy(x = close, mutate_fun = SMA, n = 15) %>% 
+  rename(SMA.15 = SMA) %>% 
+  tq_mutate_xy(x = close, mutate_fun = SMA, n = 50) %>% 
+  rename(SMA.50 = SMA)
+```
+```{r}
+AAPL %>% 
+  mutate(SMA.15 = SMA(close,n=10))
+```
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+1 + 4
+```
+
+
+```{r}
+aapl_stock_prices<- tq_get("AAPL")
+```
+```{r}
+mult_stocks <- tq_get(c("FB","AMZN"), 
+get = "stock.prices",
+from = "2016-01-01",
+to  = "2017-01-01")
+```
+
+
+```{r}
+acf(mult_stocks$open)
+```
+```{r}
+pacf(mult_stocks$open )
+```
+```{r}
+stats::Box.test(mult_stocks$open)
+```
+
+
+
+```{r}
+arima(mult_stocks$open,order = (1 0 2))
+```
+
+
+
+

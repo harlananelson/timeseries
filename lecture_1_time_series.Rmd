@@ -1,0 +1,224 @@
+---
+title: "Time Series Analysis"
+subtitle: Session 1
+output:
+  html_document:
+    df_print: paged
+---
+
+This R notebook provides code to accompany the first *Time Series* lecture.  
+
+Attach libraries.  These packages are referenced below.
+```{r}
+library(devtools)
+library(zoo)
+library(timeSeries)
+library(forecast)
+library(tidyquant)
+library(tidyverse)
+library(plotly)
+```
+
+Reference
+: See *Time Series Data* on the Sollers Site.
+
+# Time Series Analysis
+## Time Series Data.
+Time series data represent observations of an outcome measured over time.  We will start by
+reviewing facilities in R to get time series data and then to plot that data.  
+Later we will learn how to model, predict and forcast time series data.  
+
+We will use examples and note what technique each example demonostrates.  
+## Gas prices. 
+The package `tidyquant` has some useful facilities for getting data.  It tries to provide
+a link between time series analysis packages and tidyverse packages.  
+
+In addition to `tidyquant`, `tidyverse` is a fundemental set of packages.
+The tidyverse is a name given to a set of packages and the concept of keeping data organized in
+a table of one row per observation.  Data analysis requires keeping the data in a useful 
+structure and the tidyverse standard is an attempt to make that happen.
+
+Here the `tidyquant::tq_get` function is used to get the Natual Gas Index(NGI).
+The data will be extracted and plotted. Note the class if the returned object.
+
+```{r}
+ngi <- tq_get("NGI",complete_cases = TRUE)
+class(ngi)
+```
+Take a look at the last few observations of the data frame.
+```{r}
+tail(ngi)
+```
+Note that there is a date field as well as other measures.  The format is supposed to look like a table 
+you would see in a spreadsheet program. It is `tidy`.
+
+```{r}
+class(ngi)
+```
+
+Next we can create a typical time series plot.  We will start with a static plot.
+The function `plot` adjusts for the class of the object being plotted. 
+It is a good start.
+
+```{r}
+plot(ngi)
+```
+We can do better with the plot by constructing our own.
+Here is a fairly popular plotting function `ggplot2`. 
+
+`ggplot` uses aesthetic (aes), which defines how the data is mapped to the grid.
+Then geometry specifies how the data is displayed.
+```{r}
+p <- ngi %>%  
+  ggplot() + 
+  aes(x=date,y=open) +
+  geom_point() + 
+  labs(title = "Natural Gas Index", subtitle = "adjusted",
+       x = "Date",y = "Open Price")
+p
+```
+There is another package that will take the output of `ggplot` and add tool tips.
+The package `plotly` adds some interactive abilities to the plot.  
+`plotly` does a lot of other stuff and is probably better than ggplot.
+`plotly` translates `ggplot` syntax because `ggplot` is so popular, but 
+it also has its own plot layering syntax.
+
+Here a ggplot object is converted to a plotly object.  Notice that you can hover over the
+points and there is a tool bar.  
+```{r}
+ggplotly(p)
+```
+Here is a data set of rain in LA.  There is a data function that can be use to load data sets.
+Package writers can include data using the R Data package. 
+```{r}
+library(TSA)
+data(larain)
+```
+
+`larain` is a time series object. 
+A time series object has a date index and a data column.
+Even in the more advanced representations of a time series, 
+there is a date index and data.  Here there is only one column of data,
+in `tidyquant` there can be many columns of data.  
+Keeping the date or time index associated with the data is what makes 
+the time series structure unique.  This also makes it more difficult to 
+work with than other `data.frame` objects.
+```{r}
+class(larain)
+```
+The index is the date part.
+```{r}
+index(larain)
+```
+The data can be extracted using `coredata`
+```{r}
+coredata(larain)
+```
+One important property of a time series is frequency. 
+A time series has a frequency.  For example if the data is monthly and there is some periodicity,
+then the frequency will be 12.  The larain data is yearly and the frequency is 1.
+```{r}
+frequency(larain)
+```
+
+There is a plot method for this data.  
+```{r}
+plot(larain,main="LA Rain Data")
+```
+
+The function actually called is `plot.zoo`. `plot` is a generic function that looks for the 
+right method to fit the class of the data.
+```{r}
+plot.zoo(larain,main="LA Rain")
+```
+Base r has a `ts` function. `larain` is a ts object.
+There is also a package called `zoo`.  Most more advanced time series objects 
+extend `zoo`.  Extend means the take the methods of zoo and add to them.  
+```{r}
+larain_z <- zoo(larain)
+class(larain_z)
+```
+```{r}
+print(larain_z)
+```
+```{r}
+plot(larain_z,main="LA Rain")
+```
+The zoo package alows you to do much more with the time series data 
+```{r}
+methods(class="ts")
+```
+```{r}
+methods(class="zoo")
+```
+You can see that zoo adds a lot including date functions like `as.POSIXct` and the 
+ability to handle multiple columns and conversion to a data frame using `as.data.frame`.
+
+```{r}
+methods(class="yearmon")
+```
+If you need a `data.frame` for things like ploting, you can use `fortify`.
+The fortify function will separate the date index and the core data so the 
+date can be plotted on the x axis and the core data on the y-axis.
+```{r}
+larain_f <- fortify(larain)
+head(larain_f)
+```
+The result is a `data.frame`.
+```{r}
+class(larain_f)
+```
+```{r}
+larain_f %>% 
+  ggplot() +
+  aes(x=x,y=y) +
+  geom_point() +
+   labs(title = "LA Rain")
+```
+
+There is an extension of the `zoo` package called `xts` for extensible time series.  
+
+```{r}
+larain_zoo <- zoo(larain) 
+class(larain_zoo)
+```
+Here is what it looks like.
+```{r}
+head(larain_zoo)
+```
+There is a `as.data.frame` method in zoo used to convert to a data frame.
+```{r}
+as.data.frame(larain_zoo)
+```
+There is also a fortify method.
+Note that the fortify method produces a column withe the date index whereas 
+`as.data.frame` does not.
+```{r}
+larain_zoo_fortify <- fortify(larain_zoo)
+larain_zoo_fortify
+```
+If is possible to modify the names of the result
+```{r}
+names(larain_zoo_fortify) <- c("Date","rain")
+head(larain_zoo_fortify)
+```
+```{r}
+larain_zoo_fortify %>% 
+  ggplot() +
+  aes(x=Date,y=rain) +
+  geom_point() +  
+  labs(title = "LA Rain")
+```
+There is a package called `forecast` that provides some modeling abilities.
+```{r}
+methods(class="forecast")
+```
+
+```{r}
+forecast(larain_zoo)
+```
+```{r}
+fit <- auto.arima(larain)
+forecast(fit)
+```
+

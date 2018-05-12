@@ -1,0 +1,87 @@
+---
+title: "Introduction to tidyquant"
+runtime: shiny
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(tidyquant)
+```
+
+
+Copied from Matt Dancho
+
+tidyquant is a package that integrates other R package resourses for collecting and analyzing financial 
+data into a tidy framework.
+
+Three packages integrated
+: xts, zoo, quantmod, TTR, PerfomanceAnalytics
+
+## tq_index()
+Financial index data can be collected using `tq_index`.  A list of the indexes available can 
+be listed with `tq_index_options()`. 
+
+```{r,include=FALSE}
+index_options <- tq_index_options()
+inputPanel(
+  selectInput("index_options", label = "tq_index_options:",
+              choices = index_options, selected = index_options[1])
+)
+```
+
+```{r,include=FALSE}
+renderDataTable({
+  tq_index(input$index_options)
+})
+```
+
+
+A list of the exchanges available through `tq_exchange()` can be listed using `tq_exchange_options()`
+
+```{r}
+exchange_options <- tq_exchange_options()
+inputPanel(
+  selectInput("exchange_options", label = "tq_exchange_options:",
+              choices = exchange_options, selected = exchange_options[1])
+)
+actionButton("list_exchange","List Selected Exchange")
+```
+
+```{r,include=TRUE}
+exchange_list <-eventReactive(input$list_exchange,{ 
+  tq_exchange(input$exchange_options)  
+})
+exchange_options <-eventReactive(input$list_exchange,{ 
+    exchange_list() %>%  
+    select(symbol,company)  %$% 
+    structure(as.character(symbol), names = as.character(company))
+})
+
+renderDataTable({   exchange_list()  })  
+```
+
+```{r,include=FALSE}
+renderPrint({ exchange_options() })
+```
+
+```{r,include=FALSE}
+renderUI({
+   selectInput("exchange_index", label = "Exchange Index:",
+              choices = exchange_options(), selected = exchange_options()[1]) 
+})
+
+```
+
+
+
+

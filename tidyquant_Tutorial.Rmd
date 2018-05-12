@@ -1,0 +1,87 @@
+---
+title: "tidyquant Tutorial Workthrough"
+subtitle: Work through the tidyquant Tutorial
+output:
+  html_document:
+    df_print: paged
+---
+
+This is a work through of the tutorial at
+source: https://quantdev.ssri.psu.edu/sites/qdev/files/tidyquant_tutorial_Gray.html .
+
+# Install needed Libraries
+```{r}
+library(tidyquant)
+library(ggplot2)
+```
+
+Download data using tq_get
+
+```{r}
+google <- tq_get(x = "GOOG")
+head(google)
+```
+```{r}
+syse <- tq_exchange("NYSE")
+```
+
+```{r}
+head(syse)
+```
+```{r}
+nyse <- syse
+```
+
+```{r}
+nyse$symbol
+```
+```{r}
+nyse$symbol[1]
+```
+
+```{r}
+full <- tq_get(x = nyse$symbol[1], get = "stock.prices")  %>% 
+  add_column(symbol = nyse$symbol[1])
+```
+
+```{r}
+for (s in nyse$symbol[2:20]){
+  single <- try(tq_get(x = s, get = "stock.prices") %>% 
+                  add_column(symbol = s))
+  full <- try(rbind(full, single))
+}
+```
+
+```{r}
+head(full)
+```
+
+```{r}
+str(full)
+```
+```{r}
+unique(full$symbol)
+```
+
+```{r}
+ggplot(data = full) +
+  aes(x = date, y = adjusted, color = symbol) +
+  geom_line(aes(group = symbol)) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  ylab("Adjusted Price") +
+  ggtitle("10 Years of NYSE Stock Prices")
+```
+
+
+
+```{r}
+getwd()
+write.csv(full, file = "nyse_stock_prices.csv")
+```
+
+
+
+
+
+

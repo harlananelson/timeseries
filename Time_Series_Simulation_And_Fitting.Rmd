@@ -1,0 +1,70 @@
+---
+title: "Time Series Simulation and Fitting"
+output: html_notebook
+---
+
+The xts package is called Extensible Time Series.
+Load needed Libraries
+```{r}
+library(glue)
+library(xts)
+```
+Set parameters for the simulation.
+```{r}
+l=10000
+```
+Look at LC_TIME.
+```{r}
+Sys.getlocale("LC_TIME")
+```
+A time series contains two pieces, a `Index` containing a date index and `Data`.
+Use `read.zoo` to read a file from the zoo package.  The file was downloaded from
+`https://raw.githubusercontent.com/cran/zoo/master/vignettes/demo1.txt`
+to my project directory `data`.
+The format uses the standard date formating codes.
+%d
+: Numeric day: 13
+%b
+: Three diget month: Feb
+%Y: Four digit year: 2005
+sep
+: Separator in the text file between the *Time* index and the *Data* value.
+```{r}
+z <- read.zoo(file.path("data","demo1.txt"),sep = "|", format="%d %b %Y")
+glue("The class of z is {class(z)}")
+str(z)
+```
+
+
+```{r}
+dates <-xts::timeBasedSeq('20060204//m',length=l)
+```
+
+Simulate a time series that is observed every day instead of every month using '2006//d'.
+```{r}
+parameters <- list(  model=list(ar=c(0,0,0,0.8), ma=c(0.5)),   n=l)
+y <- ts(do.call(arima.sim,parameters),frequency=4)
+fit_y <- arima(y, order=c(0,0,1), seasonal=list(order=c(1,0,0)), include.mean=FALSE)
+c(coef(fit_y), sigma2 = fit_y$sigma2)
+x <-xts(y,order.by = dates,descr="Simulated xts object")
+colnames(x) <- c("rate")
+attr(x,'frequency') 
+
+# Fit without the frequency.  Seasonal adjustment will be wrong.
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+sweep::sw_tidy(fit_auto)
+sweep::sw_tidy(x)
+
+attr(x,'frequency') <-4
+attr(x,'frequency') 
+
+fit_x    <- arima(x, order=c(0,0,1), seasonal=list(order=c(1,0,0)),include.mean=FALSE)
+c(coef(fit_x), sigma2 = fit_x$sigma2)
+
+fit_auto <- auto.arima(x)
+broom::tidy(fit_auto)
+install.packages('tsdecomp')
+library(tsdecomp)
+roots.allocation(fit_auto)
+```
